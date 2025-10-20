@@ -26,11 +26,12 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: maven
 
       # 4️⃣ Linting (for Java with Checkstyle)
       - name: Run Checkstyle
         run: |
-          ./mvnw checkstyle:check
+          mvn checkstyle:check
 
       # 5️⃣ Secret Detection
       - name: Detect secrets
