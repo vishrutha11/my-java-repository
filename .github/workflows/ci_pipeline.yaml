@@ -1,0 +1,65 @@
+name: CI Security & Build Pipeline - Java
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test-scan:
+    name: Lint, Secret Scan, Trivy, and Docker Build
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 3️⃣ Set up Java
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # 4️⃣ Linting (for Java with Checkstyle)
+      - name: Run Checkstyle
+        run: |
+          ./mvnw checkstyle:check
+
+      # 5️⃣ Secret Detection
+      - name: Detect secrets
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          config-path: .gitleaks.toml
+          fail: true
+
+      # 6️⃣ Trivy FS Scan (scan source code before build)
+      - name: Trivy FS Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+          exit-code: 1
+          format: 'table'
+
+      # 7️⃣ Build Docker Image
+      - name: Build Docker image
+        run: |
+          docker build -t javaapp:latest .
+
+      # 8️⃣ Trivy Image Scan (after build)
+      - name: Trivy Image Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: javaapp:latest
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+          exit-code: 1
+          format: 'table'
